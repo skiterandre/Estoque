@@ -28,7 +28,7 @@ public class ProdutoRepository {
     private void buscaProdutosInternos(ProdutosCarregadosListener listener) {
         new BaseAsyncTask<>(dao::buscaTodos,
                 resultado -> {
-                    listener.quandoCarregados(resultado);
+                    listener.onLoaded(resultado);
                     buscaProdutosNaApi(listener);
                 })
                 .execute();
@@ -46,11 +46,11 @@ public class ProdutoRepository {
                 e.printStackTrace();
             }
             return dao.buscaTodos();
-        },listener::quandoCarregados)
+        },listener::onLoaded)
                 .executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
     }
 
     public interface ProdutosCarregadosListener{
-        void quandoCarregados(List<Produto> produtos);
+        void onLoaded(List<Produto> produtos);
     }
 }
