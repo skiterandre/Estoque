@@ -5,11 +5,12 @@ import retrofit2.Callback;
 import retrofit2.Response;
 import retrofit2.internal.EverythingIsNonNull;
 
-public class BaseCallback <T> implements Callback {
+public class CallbackComRetorno<T> implements Callback {
 
+    private static final String MENSAGEM_ERRO_RESPOSTA = "Resposta não sucedida:";
     private final RespostaCallback callback;
 
-    public BaseCallback(RespostaCallback callback) {
+    public CallbackComRetorno(RespostaCallback callback) {
         this.callback = callback;
     }
 
@@ -22,14 +23,15 @@ public class BaseCallback <T> implements Callback {
                 callback.onSuccess(result);
             }
         }else{
-            callback.onFailure("Resposta não sucedida");
+            callback.onFailure(
+                    MENSAGEM_ERRO_RESPOSTA);
         }
     }
 
     @Override
     @EverythingIsNonNull
     public void onFailure(Call call, Throwable t) {
-        callback.onFailure("Resposta não sucedida" + t.getMessage());
+        callback.onFailure(MENSAGEM_ERRO_RESPOSTA + t.getMessage());
     }
 
     public interface RespostaCallback<T>{

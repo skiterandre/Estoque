@@ -3,15 +3,14 @@ package br.com.alura.estoque.ui.activity;
 import android.os.Bundle;
 import android.widget.Toast;
 
-import com.google.android.material.floatingactionbutton.FloatingActionButton;
-
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
+
+import java.util.List;
+
 import br.com.alura.estoque.R;
-import br.com.alura.estoque.asynctask.BaseAsyncTask;
-import br.com.alura.estoque.database.EstoqueDatabase;
-import br.com.alura.estoque.database.dao.ProdutoDAO;
 import br.com.alura.estoque.model.Produto;
 import br.com.alura.estoque.repository.ProdutoRepository;
 import br.com.alura.estoque.ui.dialog.EditaProdutoDialog;
@@ -21,8 +20,12 @@ import br.com.alura.estoque.ui.recyclerview.adapter.ListaProdutosAdapter;
 public class ListaProdutosActivity extends AppCompatActivity {
 
     private static final String TITULO_APPBAR = "Lista de produtos";
+    private static final String MENSAGEM_ERRO_BUSCA_PRODUTOS = "Não foi possível carregar produtos novos:";
+    private static final String MENSAGEM_ERRO_REMOCAO_PRODUTO = "Produto não pode ser removido ";
+    private static final String MENSAGEM_ERRO_SALVA_PRODUTO = "Não foi possível salvar o produto: ";
+    private static final String MENSAGEM_ERRO_EDICAO_PRODUTO = "Não foi possivel editar o produto:";
     private ListaProdutosAdapter adapter;
-    private ProdutoDAO dao;
+
     private ProdutoRepository produtoRepository;
 
     @Override
@@ -33,11 +36,23 @@ public class ListaProdutosActivity extends AppCompatActivity {
 
         configuraListaProdutos();
         configuraFabSalvaProduto();
+        produtoRepository = new ProdutoRepository(this);
+        buscaProdutos();
+    }
 
-        EstoqueDatabase db = EstoqueDatabase.getInstance(this);
-        dao = db.getProdutoDAO();
-        produtoRepository = new ProdutoRepository(dao);
-        produtoRepository.buscaProdutos(adapter::atualiza);
+    private void buscaProdutos() {
+
+        produtoRepository.buscaProdutos(new ProdutoRepository.DadosCarregadosCallback<List<Produto>>() {
+            @Override
+            public void onSuccess(List<Produto> resultado) {
+                adapter.atualiza(resultado);
+            }
+
+            @Override
+            public void onError(String erro) {
+                mostraErro(MENSAGEM_ERRO_BUSCA_PRODUTOS + erro);
+            }
+        });
     }
 
 
@@ -48,14 +63,24 @@ public class ListaProdutosActivity extends AppCompatActivity {
         adapter.setOnItemClickRemoveContextMenuListener(this::remove);
     }
 
-    private void remove(int posicao,
-                        Produto produtoRemovido) {
-        new BaseAsyncTask<>(() -> {
-            dao.remove(produtoRemovido);
-            return null;
-        }, resultado -> adapter.remove(posicao))
-                .execute();
+    private void remove(int posicao, Produto produtoEscolhido) {
+        produtoRepository.remove(produtoEscolhido, new ProdutoRepository.DadosCarregadosCallback<Void>() {
+            @Override
+            public void onSuccess(Void resultado) {
+                adapter.remove(posicao);
+            }
+
+            @Override
+            public void onError(String erro) {
+                mostraErro(MENSAGEM_ERRO_REMOCAO_PRODUTO + erro);
+            }
+        });
     }
+
+    private void mostraErro(String mensagem) {
+        Toast.makeText(ListaProdutosActivity.this, mensagem, Toast.LENGTH_SHORT).show();
+    }
+
 
     private void configuraFabSalvaProduto() {
         FloatingActionButton fabAdicionaProduto = findViewById(R.id.activity_lista_produtos_fab_adiciona_produto);
@@ -63,21 +88,22 @@ public class ListaProdutosActivity extends AppCompatActivity {
     }
 
     private void abreFormularioSalvaProduto() {
-        new SalvaProdutoDialog(this, produtoCriado -> {
-            produtoRepository.salva(produtoCriado, new ProdutoRepository.DadosCarregadosCallback<Produto>() {
-                @Override
-                public void onSuccess(Produto resultado) {
-                    adapter.adiciona(resultado);
-                }
-
-                @Override
-                public void onError(String erro) {
-                    Toast.makeText(ListaProdutosActivity.this, "Não foi possível salvar o produto: " + erro, Toast.LENGTH_SHORT).show();
-                }
-            });
-        }).mostra();
+        new SalvaProdutoDialog(this, this::salva).mostra();
     }
 
+    private void salva(Produto produtoCriado) {
+        produtoRepository.salva(produtoCriado, new ProdutoRepository.DadosCarregadosCallback<Produto>() {
+            @Override
+            public void onSuccess(Produto resultado) {
+                adapter.adiciona(resultado);
+            }
+
+            @Override
+            public void onError(String erro) {
+                mostraErro(MENSAGEM_ERRO_SALVA_PRODUTO + erro);
+            }
+        });
+    }
 
 
     private void abreFormularioEditaProduto(int posicao, Produto produto) {
@@ -86,14 +112,18 @@ public class ListaProdutosActivity extends AppCompatActivity {
                 .mostra();
     }
 
-    private void edita(int posicao, Produto produto) {
-        new BaseAsyncTask<>(() -> {
-            dao.atualiza(produto);
-            return produto;
-        }, produtoEditado ->
-                adapter.edita(posicao, produtoEditado))
-                .execute();
-    }
+    private void edita(int posicao, Produto produtoEditado) {
+        produtoRepository.edita(produtoEditado, new ProdutoRepository.DadosCarregadosCallback<Produto>() {
+            @Override
+            public void onSuccess(Produto produto) {
+                adapter.edita(posicao, produto);
+            }
 
+            @Override
+            public void onError(String erro) {
+                mostraErro(MENSAGEM_ERRO_EDICAO_PRODUTO + erro);
+            }
+        });
+    }
 
 }
